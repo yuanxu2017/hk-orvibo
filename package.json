@@ -1,6 +1,6 @@
 {
   "name": "hk-orvibo",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "hk-orvibo",
   "main": "index.js",
   "scripts": {
@@ -14,10 +14,16 @@
     "hk",
     "node"
   ],
-  "author": "yx",
+  "author": "bywander",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/yuanxu2017/hk-orvibo/issues"
   },
-  "homepage": "https://github.com/yuanxu2017/hk-orvibo#readme"
+  "homepage": "https://github.com/yuanxu2017/hk-orvibo#readme",
+  "dependencies": {
+    "https": "^1.0.0",
+    "underscore": "^1.8.3",
+    "q": "^1.4.1",
+    "urlencode": "^1.1.0"
+  }
 }
