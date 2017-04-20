@@ -22,6 +22,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 var HKOrvibo = function(options) {
     this.options = options;
+    this.options.irDeviceType = options.irDeviceType || 5;
     Event.EventEmitter.call(this);
 };
 
@@ -32,7 +33,7 @@ HKOrvibo.prototype.init = function () {
         return this.getDeviceStatus().then(function (result) {
             if(result&&result.status==0&&result.statusList){
                 _.each(result.statusList,function (dev) {
-                    if(dev.deviceId && dev.deviceType == 5){
+                    if(dev.deviceId){
                         if(dev.online == 1){
                             this.emit('online',dev.deviceId);
                         }else {
