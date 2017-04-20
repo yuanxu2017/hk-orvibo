@@ -9,9 +9,11 @@ const Q         = require('q');
 var Event       = require('events');
 var util        = require('util');
 
-const api_DeviceContrl    = "/api/control";
-const api_DeviceList      = "/api/getDeviceListNoScene";
+const api_DeviceContrl     = "/api/control";
+const api_DeviceList       = "/api/getDeviceListNoScene";
 const api_DeviceStatusAll = "/api/deviceStatusAll";
+const api_IRDeviceList     = "/api/getIRDeviceList";
+const api_KKIRDeviceList    = "/api/getKKIRDeviceList";
 
 const api_token_Acirmodel = "/acirmodel";
 const api_token_Acircode  = "/acir";
@@ -22,7 +24,6 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 var HKOrvibo = function(options) {
     this.options = options;
-    this.options.irDeviceType = options.irDeviceType || 5;
     Event.EventEmitter.call(this);
 };
 
@@ -33,7 +34,7 @@ HKOrvibo.prototype.init = function () {
         return this.getDeviceStatus().then(function (result) {
             if(result&&result.status==0&&result.statusList){
                 _.each(result.statusList,function (dev) {
-                    if(dev.deviceId){
+                    if(dev.deviceId && dev.deviceType == 5){
                         if(dev.online == 1){
                             this.emit('online',dev.deviceId);
                         }else {
@@ -63,7 +64,8 @@ HKOrvibo.prototype.getDeviceList = function () {
     var url       = urlencode(apiuri);
     var params    = {appId:appId,password:md5pwd, userName:userName, sn:sn,time:timestamp,url:url};
     var postdata  = this.createOvriboAPISignature(apiuri,appkey,params);
-
+    console.log(postdata);
+    console.log(params);
     return this.httpsRequstPost(this.options.host,apiuri,postdata);
 };
 
@@ -80,6 +82,26 @@ HKOrvibo.prototype.getDeviceStatus = function () {
     var sn        = this.randomString();
     var url       = urlencode(apiuri);
     var params    = {appId:appId,password:md5pwd,userName:userName,sn:sn,time:timestamp,url:url};
+    var postdata  = this.createOvriboAPISignature(apiuri,appkey,params);
+
+    return this.httpsRequstPost(this.options.host,apiuri,postdata);
+};
+
+HKOrvibo.prototype.getKKIRDeviceList = function (uid,deviceId) {
+
+    var userName = this.options.userName;
+    var password = this.options.password;
+    var appkey   = this.options.appkey;
+    var appId    = this.options.appId;
+
+    var apiuri    = api_KKIRDeviceList;
+    var timestamp = this.getTimestamp();
+    var md5pwd    = crypto.createHash('md5').update(password).digest('hex').toString().toUpperCase();
+    var sn        = this.randomString();
+    var url       = urlencode(apiuri);
+    var uid       = uid;//"5ccf7f20875d";
+    var deviceId  = deviceId;//"c39f7c25f5704ad991246c610210eb66";
+    var params    = {appId:appId,password:md5pwd,userName:userName,sn:sn,time:timestamp,url:url,uid:uid,deviceId:deviceId,};
     var postdata  = this.createOvriboAPISignature(apiuri,appkey,params);
 
     return this.httpsRequstPost(this.options.host,apiuri,postdata);
@@ -162,9 +184,18 @@ HKOrvibo.prototype.deviceControl = function (uid,deviceId,irFre,irCode) {
     var id        = "";
     var freq      = irFre;
 
+    // var powerOff = "9000,4500,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,580,610,1680,610,580,610,580,610,1680,610,580,610,20000,610,1680,610,580,610,580,610,580,610,1680,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,580,610,1680,610,1680,610,40000,9000,4500,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,1680,610,1680,610,580,610,580,610,1680,610,580,610,20000,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,580,610,1680,610,1000";
+    // var powerOn  = "9000,4500,610,580,610,580,610,1680,610,1680,610,580,610,580,610,1680,610,580,610,580,610,1680,610,580,610,1680,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,580,610,1680,610,580,610,580,610,1680,610,580,610,20000,610,1680,610,580,610,580,610,580,610,1680,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,1680,610,580,610,580,610,40000,9000,4500,610,580,610,580,610,1680,610,1680,610,580,610,580,610,1680,610,580,610,580,610,1680,610,580,610,1680,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,1680,610,1680,610,580,610,580,610,1680,610,580,610,20000,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,1000";
+    // var powerOn20 = "9000,4500,610,580,610,580,610,1680,610,1680,610,580,610,580,610,1680,610,580,610,580,610,580,610,1680,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,580,610,1680,610,580,610,580,610,1680,610,580,610,20000,610,1680,610,580,610,580,610,580,610,1680,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,580,610,1680,610,1680,610,40000,9000,4500,610,580,610,580,610,1680,610,1680,610,580,610,580,610,1680,610,580,610,580,610,580,610,1680,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,1680,610,1680,610,580,610,580,610,1680,610,580,610,20000,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,580,610,1680,610,1000";
+    // var powerOnMode2 = "9000,4500,610,580,610,580,610,580,610,1680,610,580,610,580,610,1680,610,580,610,1680,610,580,610,1680,610,1680,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,580,610,1680,610,580,610,580,610,1680,610,580,610,20000,610,1680,610,580,610,580,610,580,610,1680,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,580,610,580,610,40000,9000,4500,610,580,610,580,610,580,610,1680,610,580,610,580,610,1680,610,580,610,1680,610,580,610,1680,610,1680,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,1680,610,1680,610,580,610,580,610,1680,610,580,610,20000,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,580,610,1680,610,1680,610,1680,610,1680,610,1000";
+
     var pluseData = irCode;
     var pluseNum  = pluseData.split(",").length;
     var pluseNum  = pluseNum.toString();
+
+
+
+
 
     var params = {appId:appId,password:md5pwd, userName:userName, sn:sn,time:timestamp,url:url,uid:uid,deviceId:deviceId,
         order:order,value1:value1,value2:value2,value3:value3,value4:value4,delayTime:delayTime,type:type,
@@ -237,12 +268,13 @@ HKOrvibo.prototype.httpsRequstPost = function (host,uri,postdata) {
         str+=d;
 });
     res.on('end',()=>{
+        //resolve(JSON.parse(str));
         var returnStr = '';
-        try{
-            returnStr = JSON.parse(str);
-        }catch(e){
+    try{
+        returnStr = JSON.parse(str);
+    }catch(e){
 
-        }
+    }
 
     resolve(returnStr);
 })
