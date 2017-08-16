@@ -31,7 +31,18 @@ util.inherits(HKOrvibo,Event.EventEmitter);
 
 HKOrvibo.prototype.init = function () {
     this.addRoutine(function () {
-        return this.getDeviceStatus().then(function (result) {
+
+        var deferred = Q.defer();
+
+        this.readDataTimeoutHandle = setTimeout(function () {
+             console.log('Orvibo read timeout');
+            this.readDataTimeoutHandle = null;
+            deferred.reject('Orvibo read timeout');
+        }.bind(this),30000);
+
+        Q().then(function() {
+            return this.getDeviceStatus();
+        }.bind(this)).then(function (result) {
             if(result&&result.status==0&&result.statusList){
                 _.each(result.statusList,function (dev) {
                     if(dev.deviceId){
@@ -43,9 +54,16 @@ HKOrvibo.prototype.init = function () {
                     }
                 }.bind(this));
             }
-            return true;
-        }.bind(this));
+            clearTimeout(this.readDataTimeoutHandle);
+            this.readDataTimeoutHandle = null;
+            deferred.resolve('true');
+        }.bind(this)).catch(function(err) {
+          //
+            console.error(err.message);
+            deferred.reject('Orvibo read error');
+        });
 
+        return deferred.promise;
     }.bind(this) ,this.options.interval || 60000);
 };
 
@@ -264,7 +282,6 @@ HKOrvibo.prototype.httpsRequstPost = function (host,uri,postdata) {
         }catch(e){
 
         }
-
     resolve(returnStr);
 })
 });
