@@ -42,7 +42,7 @@ HKOrvibo.prototype.init = function () {
         this.readDataTimeoutHandle = setTimeout(function () {
             console.log('Orvibo read timeout');
             this.readDataTimeoutHandle = null;
-            deferred.reject('Orvibo read timeout');
+            deferred.resolve('Orvibo read timeout');
         }.bind(this),30000);
 
         Q().then(function() {
@@ -66,7 +66,7 @@ HKOrvibo.prototype.init = function () {
         }.bind(this)).catch(function(err) {
             //
             console.error(err.message);
-            deferred.reject('Orvibo read error');
+            deferred.resolve('Orvibo read error');
         });
 
         return deferred.promise;
@@ -210,7 +210,7 @@ HKOrvibo.prototype.getAcIRCode = function (rid,power,mode,temperature,speed,dire
     var nonce     = "1234";
     var sign      = this.createOvriboTokenSignature(token,timestamp,nonce);
 
-    var getACIRCode = api_token_Acircode+"?rid="+rid+"&power="+power+"&mode="+mode+"&temp="+temperature+"&speed="+speed+"&direct="+direct+"&signature="+sign+"&timestamp="+timestamp+"&nonce="+nonce;
+    var getACIRCode = api_token_Acircode+"?rid="+rid+"&power="+power+"&mode="+mode+"&temp="+temperature+"&speed="+speed+"&direct="+direct+"&fid=0"+"&signature="+sign+"&timestamp="+timestamp+"&nonce="+nonce;
 
     return this.httpsRequstGet(this.options.host,getACIRCode).then((res)=>{
         if(res&&res.status!=undefined){
