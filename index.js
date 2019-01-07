@@ -201,16 +201,17 @@ HKOrvibo.prototype.getIRCode = function (rids,countryCode) {
 
 };
 
-HKOrvibo.prototype.getAcIRCode = function (rid,power,mode,temperature,speed,direct) {
+HKOrvibo.prototype.getAcIRCode = function (rid,power,mode,temperature,speed,direct,fid) {
     var token = this.options.token;
     var host     = this.options.host;
 
     var result = {status:1,msg:"request failed"};
     var timestamp = this.getTimestamp();
     var nonce     = "1234";
+    var fidcode   = (fid==undefined)?0:fid;
     var sign      = this.createOvriboTokenSignature(token,timestamp,nonce);
 
-    var getACIRCode = api_token_Acircode+"?rid="+rid+"&power="+power+"&mode="+mode+"&temp="+temperature+"&speed="+speed+"&direct="+direct+"&fid=0"+"&signature="+sign+"&timestamp="+timestamp+"&nonce="+nonce;
+    var getACIRCode = api_token_Acircode+"?rid="+rid+"&power="+power+"&mode="+mode+"&temp="+temperature+"&speed="+speed+"&direct="+direct+"&fid="+fidcode+"&signature="+sign+"&timestamp="+timestamp+"&nonce="+nonce;
 
     return this.httpsRequstGet(this.options.host,getACIRCode).then((res)=>{
         if(res&&res.status!=undefined){
