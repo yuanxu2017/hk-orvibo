@@ -3,6 +3,7 @@
  * 2018-02-28 add TV(include customer mode) & S20c control
  */
 const https     = require('https');
+const http      = require("http");
 const urlencode = require('urlencode');
 const crypto    = require('crypto');
 const _         = require('underscore');
@@ -24,11 +25,14 @@ const param_order_ircontrol = "ir control";
 const param_order_on        = "on";
 const param_order_off       = "off";
 
+const exten_api_GetContentByUIds = "/orvibo/getContentByUIds";
+
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 var HKOrvibo = function(options) {
     this.options = options;
     this.options.irDeviceType = options.irDeviceType || 5;
+    this.UIds = [];
     Event.EventEmitter.call(this);
 };
 
@@ -46,16 +50,32 @@ HKOrvibo.prototype.init = function () {
         }.bind(this),30000);
 
         Q().then(function() {
-            return this.getDeviceStatus();
+            return this.getDeviceStatusByUIds();
         }.bind(this)).then(function (result) {
-            if(result&&result.status==0&&result.statusList){
-                _.each(result.statusList,function (dev) {
-                    // console.log('dev:',JSON.stringify(dev));
-                    if(dev.deviceId){
-                        if(dev.online == 1){
+            console.log('result:%s',JSON.stringify(result));
+            if(result&&result.result==true && result.object){
+                _.each(result.object,function (devInfo,uid) {
+                    var dev = JSON.parse(devInfo[0].func);
+                    var devOnline = devInfo[0].status || {};
+
+                    if(_.isEmpty(devOnline))
+                    {
+
+                        devOnline = {"infoType":107};
+                    }
+                    else {
+                        devOnline = JSON.parse(devOnline);
+                    }
+
+                    // console.log('dev:',dev,uid,dev.uid);
+                    if(dev.uid){
+                        // dev.online = true;// for test only
+                        // console.log('dev:',dev,uid);
+                        // 107 online , 108 offline
+                        if(parseInt(devOnline.infoType) == 107){
                             this.emit('online',dev);
                         }else {
-                            this.emit('offline',dev.deviceId);
+                            this.emit('offline',uid);
                         }
                     }
                 }.bind(this));
@@ -65,9 +85,11 @@ HKOrvibo.prototype.init = function () {
             deferred.resolve('true');
         }.bind(this)).catch(function(err) {
             //
+            clearTimeout(this.readDataTimeoutHandle);
+            this.readDataTimeoutHandle = null;
             console.error(err.message);
             deferred.resolve('Orvibo read error');
-        });
+        }.bind(this));
 
         return deferred.promise;
     }.bind(this) ,this.options.interval || 60000);
@@ -90,6 +112,33 @@ HKOrvibo.prototype.getDeviceList = function () {
     var postdata  = this.createOvriboAPISignature(apiuri,appkey,params);
 
     return this.httpsRequstPost(this.options.host,apiuri,postdata);
+};
+
+HKOrvibo.prototype.getDeviceStatusByUIds = function () {
+
+    var apiuri = exten_api_GetContentByUIds;
+    var postdata = "";
+    var uids   = "";
+    var token  = "";
+    var iv = "";
+    var timestamp = this.getTimestamp();
+
+    var data = this.options.houseId + "_" + this.getTimestamp();
+    var key = this.options.key;
+    var token = this.encryption(data,key,iv);
+
+    if(this.UIds.length > 0){
+       _.each(_.uniq(this.UIds),function (item) {
+            uids = uids + item + ',';
+        });
+        uids = uids.substring(0, uids.lastIndexOf(','));
+        var uri  = apiuri+"?uIds="+uids;
+
+        return this.httpRequstPost(this.options.extenHost,uri,postdata,token);
+    }
+    else{
+        return Q.resolve("");
+    }
 };
 
 HKOrvibo.prototype.getDeviceStatus = function () {
@@ -203,7 +252,7 @@ HKOrvibo.prototype.getIRCode = function (rids,countryCode) {
 
 HKOrvibo.prototype.getAcIRCode = function (rid,power,mode,temperature,speed,direct,fid) {
     var token = this.options.token;
-    var host     = this.options.host;
+    var host  = this.options.host;
 
     var result = {status:1,msg:"request failed"};
     var timestamp = this.getTimestamp();
@@ -264,7 +313,7 @@ HKOrvibo.prototype.deviceControl = function (uid,deviceId,irFre,irCode) {
 
     var postdata = this.createOvriboAPISignature(apiuri,appkey,params);
 
-    // console.log(postdata);
+    // console.log("postdata:",postdata);
     return this.httpsRequstPost(this.options.host,apiuri,postdata);
 
 };
@@ -314,9 +363,14 @@ HKOrvibo.prototype.orviboDeviceControl = function (uid,deviceId,value) {
 
     var postdata = this.createOvriboAPISignature(apiuri,appkey,params);
 
-    // console.log(postdata);
+    // console.log("sn:",sn,uid);
     return this.httpsRequstPost(this.options.host,apiuri,postdata);
 
+};
+
+HKOrvibo.prototype.SetUIds = function (uids) {
+    // console.log("SetUIds:",JSON.stringify(uids));
+    this.UIds = uids;
 };
 
 HKOrvibo.prototype.getTimestamp = function () {
@@ -397,6 +451,57 @@ HKOrvibo.prototype.httpsRequstPost = function (host,uri,postdata) {
 };
 
 /**
+ *
+ */
+
+HKOrvibo.prototype.httpRequstPost = function(host,uri,postdata,token) {
+    return new Promise((resolve, reject) => {
+        var options = {
+            hostname: host,
+            port: 80,
+            path: uri,
+            method: 'POST',
+            headers:{
+                'token':token
+            }
+        };
+        // console.log('options:%s',JSON.stringify(options));
+        var str = '';
+        var req = http.request(options, (res) => {
+            res.setEncoding("utf-8");
+            res.on('data', (d) => {
+                str+=d;
+            });
+            res.on('end',()=>{
+                var returnStr = '';
+                try{
+                    if(res.statusCode == 200){
+                        // console.log('statusCode:%s,str:%s',res.statusCode,str);
+                        if(str.length > 0){
+                            returnStr = JSON.parse(str);
+                        }
+
+                        resolve(returnStr);
+                    }else {
+                        console.error(str);
+                        resolve('');
+                    }
+
+                }catch(e){
+                    resolve('');
+                }
+
+            })
+        });
+        req.write(postdata);
+        req.end();
+        req.on('error', (e) => {
+            resolve('');
+        });
+    })
+};
+
+/**
  * randomString
  */
 HKOrvibo.prototype.randomString = function(len) {
@@ -456,6 +561,45 @@ HKOrvibo.prototype.createOvriboAPISignature= function (uri,appkey,params) {
     const result = getArgs+'&sig='+sig;
     // console.log(result);
     return result;
+};
+
+/**
+ * aes加密
+ * @param data 待加密内容
+ * @param key 必须为 16位私钥
+ * @returns {string}
+ */
+HKOrvibo.prototype.encryption = function (data, key, iv) {
+    iv = iv || "";
+    var clearEncoding = 'utf8';
+    var cipherEncoding = 'base64';
+    var cipherChunks = [];
+    var cipher = crypto.createCipheriv('aes-128-ecb', key, iv);
+    cipher.setAutoPadding(true);
+    cipherChunks.push(cipher.update(data, clearEncoding, cipherEncoding));
+    cipherChunks.push(cipher.final(cipherEncoding));
+    return cipherChunks.join('');
+};
+
+/**
+ * aes解密
+ * @param data 待解密内容
+ * @param key 必须为 16位私钥
+ * @returns {string}
+ */
+HKOrvibo.prototype.decryption = function (data, key, iv) {
+    if (!data) {
+        return "";
+    }
+    iv = iv || "";
+    var clearEncoding = 'utf8';
+    var cipherEncoding = 'base64';
+    var cipherChunks = [];
+    var decipher = crypto.createDecipheriv('aes-128-ecb', key, iv);
+    decipher.setAutoPadding(true);
+    cipherChunks.push(decipher.update(data, cipherEncoding, clearEncoding));
+    cipherChunks.push(decipher.final(clearEncoding));
+    return cipherChunks.join('');
 };
 
 HKOrvibo.prototype.addRoutine = function(Routine,timeout){
