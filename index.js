@@ -52,7 +52,7 @@ HKOrvibo.prototype.init = function () {
         Q().then(function() {
             return this.getDeviceStatusByUIds();
         }.bind(this)).then(function (result) {
-            console.log('result:%s',JSON.stringify(result));
+            // console.log('result:%s',JSON.stringify(result));
             if(result&&result.result==true && result.object){
                 _.each(result.object,function (devInfo,uid) {
                     var dev = JSON.parse(devInfo[0].func);
