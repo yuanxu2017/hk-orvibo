@@ -52,10 +52,14 @@ HKOrvibo.prototype.init = function () {
         Q().then(function() {
             return this.getDeviceStatusByUIds();
         }.bind(this)).then(function (result) {
-            // console.log('result:%s',JSON.stringify(result));
             if(result&&result.result==true && result.object){
                 _.each(result.object,function (devInfo,uid) {
-                    var dev = JSON.parse(devInfo[0].func);
+                    var dev = {};
+                    if(!devInfo[0].func || devInfo[0].func == "" || devInfo[0].func == null){
+                        dev = {"uid":uid};
+                    }else{
+                        dev = JSON.parse(devInfo[0].func);
+                    }
                     var devOnline = devInfo[0].status || {};
 
                     if(_.isEmpty(devOnline))
@@ -67,14 +71,17 @@ HKOrvibo.prototype.init = function () {
                         devOnline = JSON.parse(devOnline);
                     }
 
-                    // console.log('dev:',dev,uid,dev.uid);
-                    if(dev.uid){
+                    // console.log('dev:',dev,uid,dev.uid,devOnline);
+                    if(dev.uid != undefined){
                         // dev.online = true;// for test only
                         // console.log('dev:',dev,uid);
                         // 107 online , 108 offline
+                        // console.log(parseInt(devOnline.infoType));
                         if(parseInt(devOnline.infoType) == 107){
+                            // console.log("online",dev);
                             this.emit('online',dev);
                         }else {
+                            // console.log("offline",uid);
                             this.emit('offline',uid);
                         }
                     }
